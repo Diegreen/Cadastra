@@ -30,7 +30,6 @@ let productsPerPage = 9;
 async function main() {
   try {
     products = await fetchProducts(serverUrl);
-    console.log("Produtos carregados:", products);
 
     const initialProductCount = window.innerWidth < 768 ? 4 : 9;
     productsPerPage = initialProductCount;
@@ -62,7 +61,6 @@ async function fetchProducts(url: string): Promise<Product[]> {
     }
     const data: Product[] = await response.json();
     products = data;
-    console.log("Dados recebidos do servidor:", data);
     return data;
   } catch (error) {
     console.error("Erro ao buscar produtos:", error);
@@ -74,7 +72,6 @@ async function fetchProducts(url: string): Promise<Product[]> {
 function addToCart(product: Product) {
   cartItemCount++;
   updateCartCount();
-  console.log(`Produto ${product.name} adicionado ao carrinho. Total de itens: ${cartItemCount}`);
 }
 
 function updateCartCount() {
@@ -111,10 +108,7 @@ function renderProducts(products: Product[], append: boolean = false) {
     productsContainer.innerHTML = '';
   }
 
-  console.log("Renderizando produtos...");
-
   products.forEach(product => {
-    console.log("Renderizando produto:", product);
 
     const productDiv = document.createElement('div');
     productDiv.classList.add('product-item');
@@ -149,8 +143,6 @@ function renderProducts(products: Product[], append: boolean = false) {
 
     productsContainer.appendChild(productDiv);
   });
-
-  console.log("Produtos renderizados:", productsContainer.innerHTML);
 }
 
 // Função para configurar os botões de filtro e ordenação
@@ -165,34 +157,46 @@ function setupFilterAndOrderTriggers() {
 
   buttonFilterMobile.addEventListener('click', (event) => {
     event.preventDefault();
-    formFilterMobile.classList.toggle('active');
-    asideElement.classList.toggle('active');
+    formOrderMobile.classList.remove('active'); 
+    formFilterMobile.classList.toggle('active'); 
+    if (formFilterMobile.classList.contains('active') || formOrderMobile.classList.contains('active')) {
+      asideElement.classList.add('active');
+    } else {
+      asideElement.classList.remove('active');
+    }
   });
 
   buttonOrderMobile.addEventListener('click', (event) => {
     event.preventDefault();
-    formOrderMobile.classList.toggle('active');
-    asideElement.classList.toggle('active');
+    formFilterMobile.classList.remove('active'); 
+    formOrderMobile.classList.toggle('active'); 
+    if (formFilterMobile.classList.contains('active') || formOrderMobile.classList.contains('active')) {
+      asideElement.classList.add('active');
+    } else {
+      asideElement.classList.remove('active');
+    }
   });
 
   closeFilterMobile.addEventListener('click', (event) => {
     event.preventDefault();
-    formFilterMobile.classList.remove('active');
-    asideElement.classList.remove('active');
+    formFilterMobile.classList.remove('active'); 
+    if (!formOrderMobile.classList.contains('active')) {
+      asideElement.classList.remove('active');
+    }
   });
 
   closeOrderMobile.addEventListener('click', (event) => {
     event.preventDefault();
     formOrderMobile.classList.remove('active');
-    asideElement.classList.remove('active');
+    if (!formFilterMobile.classList.contains('active')) {
+      asideElement.classList.remove('active');
+    }
   });
 
-  
   renderFilterOptions('color', 'desktop-color-container', 'desktop');
   renderFilterOptions('size', 'desktop-size-container', 'desktop');
   renderFilterOptions('price', 'desktop-price-container', 'desktop');
 
- 
   const orderRecentMobile = document.getElementById('orderTriggerRecent');
   const orderHighPriceMobile = document.getElementById('orderTriggerHighPrice');
   const orderLowPriceMobile = document.getElementById('orderTriggerLowPrice');
@@ -216,7 +220,7 @@ function setupFilterAndOrderTriggers() {
   if (orderLowPriceMobile) {
     orderLowPriceMobile.addEventListener('click', () => {
       sortProducts('low-price');
-      asideElement.classList.remove('active'); 
+      asideElement.classList.remove('active');
       formOrderMobile.classList.remove('active');
     });
   }
@@ -232,32 +236,42 @@ function setupFilterToggleButtons() {
   const sizeContainer = document.getElementById('size-container') as HTMLElement;
   const priceContainer = document.getElementById('price-container') as HTMLElement;
 
+  const filterButtons = document.getElementById('filter-buttons') as HTMLElement;
+
   if (colorButton && sizeButton && priceButton) {
     colorButton.addEventListener('click', (event) => {
       event.preventDefault();
       renderFilterOptions('color', 'color-container', 'mobile');
-      toggleVisibility(colorContainer);
+      toggleVisibility(colorContainer, filterButtons);
     });
 
     sizeButton.addEventListener('click', (event) => {
       event.preventDefault();
       renderFilterOptions('size', 'size-container', 'mobile');
-      toggleVisibility(sizeContainer);
+      toggleVisibility(sizeContainer, filterButtons);
     });
 
     priceButton.addEventListener('click', (event) => {
       event.preventDefault();
       renderFilterOptions('price', 'price-container', 'mobile');
-      toggleVisibility(priceContainer);
+      toggleVisibility(priceContainer, filterButtons);
     });
   }
 }
 
-function toggleVisibility(container: HTMLElement) {
-  if (container.style.display === 'block') {
+
+function toggleVisibility(container: HTMLElement, filterButtons: HTMLElement) {
+
+  const isActive = container.classList.contains('active');
+  const sizeContainer = document.getElementById('size-container') as HTMLElement;
+   if (isActive) {
+    container.classList.remove('active');
     container.style.display = 'none';
+    filterButtons.classList.remove('active');
   } else {
-    container.style.display = 'block';
+    container.classList.add('active');
+    container.style.display = sizeContainer ? 'flex' : 'block';
+    filterButtons.classList.add('active');
   }
 }
 
@@ -297,12 +311,11 @@ function renderFilterOptions(filterType: FilterType, containerId: string, contex
             selectedPriceRangesDesktop = selectedPriceRangesDesktop.filter(range => range.min !== priceRange.min || range.max !== priceRange.max);
           }
         }
-        console.log('Selected price ranges:', context === 'mobile' ? selectedPriceRangesMobile : selectedPriceRangesDesktop);
         applyFilters(context);
       });
-
       productsContainer.appendChild(itemDiv);
     });
+
   } else if (filterType === 'size') {
     const sizes = new Set<string>();
 
@@ -338,7 +351,6 @@ function renderFilterOptions(filterType: FilterType, containerId: string, contex
             button.classList.add('selected');
           }
         }
-        console.log('Selected sizes:', context === 'mobile' ? Array.from(selectedSizesMobile) : Array.from(selectedSizesDesktop));
         applyFilters(context);
       });
 
@@ -379,10 +391,8 @@ function renderFilterOptions(filterType: FilterType, containerId: string, contex
             selectedColorsDesktop.delete(target.value);
           }
         }
-        console.log('Selected colors:', context === 'mobile' ? Array.from(selectedColorsMobile) : Array.from(selectedColorsDesktop));
         applyFilters(context);
       });
-
       productsContainer.appendChild(itemDiv);
     });
   }
@@ -410,12 +420,8 @@ function applyFilters(context: 'mobile' | 'desktop') {
         return productPrice >= range.min && productPrice <= range.max;
       });
     }
-
-    console.log(`Produto: ${product.name}, Preço: ${productPrice}, Cor: ${product.color}, Tamanho: ${product.size}, isColorMatch: ${isColorMatch}, isSizeMatch: ${isSizeMatch}, isPriceMatch: ${isPriceMatch}`);
-
     return isColorMatch && isSizeMatch && isPriceMatch;
   });
-
   renderProducts(filteredProducts);
 }
 
@@ -430,7 +436,6 @@ function sortProducts(criteria: string) {
   } else if (criteria === 'low-price') {
     sortedProducts.sort((a, b) => a.price - b.price);
   }
-
   renderProducts(sortedProducts, false);
 }
 
@@ -440,11 +445,9 @@ function setupOrderSelect() {
   if (orderSelect) {
     orderSelect.addEventListener('change', () => {
       const criteria = orderSelect.value;
-      console.log(`Ordenando por: ${criteria}`);
       sortProducts(criteria);
     });
   }
 }
 
-// Inicialização dos filtros ao carregar a página
 document.addEventListener("DOMContentLoaded", main);
