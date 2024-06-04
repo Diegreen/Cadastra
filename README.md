@@ -1,4 +1,4 @@
-#Ao abrir rode NPM INSTALL NO SEU TERMINAL, após baixar as dependencias NPM RUN DEV
+#Ao abrir rode NPM INSTALL NO SEU TERMINAL, após baixar as dependencias NPM START
 
 #email de contato: diegonegocios21@outlook.com
 
