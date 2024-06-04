@@ -13,48 +13,60 @@ const priceRanges = [
   { label: "a partir de R$500", min: 501, max: Infinity }
 ];
 
-let selectedColors: Set<string> = new Set();
-let selectedPriceRanges: { min: number; max: number }[] = [];
-let selectedSizes: Set<string> = new Set();
+let selectedColorsMobile: Set<string> = new Set();
+let selectedPriceRangesMobile: { min: number; max: number }[] = [];
+let selectedSizesMobile: Set<string> = new Set();
 
-let filtersToApply = {
-  colors: new Set<string>(),
-  sizes: new Set<string>(),
-  priceRanges: [] as { min: number; max: number }[],
-};
+let selectedColorsDesktop: Set<string> = new Set();
+let selectedPriceRangesDesktop: { min: number; max: number }[] = [];
+let selectedSizesDesktop: Set<string> = new Set();
 
 type FilterType = 'color' | 'size' | 'price';
 
 let currentProductIndex = 0;
-const productsPerPage = 4;
+let productsPerPage = 9;
 
 //main
 async function main() {
   try {
     products = await fetchProducts(serverUrl);
     console.log("Produtos carregados:", products);
-    renderProducts(products.slice(0, productsPerPage)); // Renderiza os primeiros 4 produtos
-    currentProductIndex = productsPerPage;
+
+    const initialProductCount = window.innerWidth < 768 ? 4 : 9;
+    productsPerPage = initialProductCount;
+    
+    renderProducts(products.slice(0, initialProductCount)); 
+    currentProductIndex = initialProductCount;
+
     setupLoadMoreButton();
-    navbarAsideTrigger();
+    setupFilterAndOrderTriggers();
+    setupFilterToggleButtons();
+    setupOrderSelect();
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth < 768) {
+        window.location.reload(); 
+      }
+    });
   } catch (error) {
     console.error("Erro ao carregar produtos:", error);
   }
 }
+
 //fetch dos produtos
-export async function fetchProducts(url: string): Promise<Product[]> {
+async function fetchProducts(url: string): Promise<Product[]> {
   try {
-      const response = await fetch(url);
-      if (!response.ok) {
-          throw new Error(`Erro: ${response.statusText}`);
-      }
-      const data: Product[] = await response.json();
-      products = data
-      console.log("Dados recebidos do servidor:", data); 
-      return data;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Erro: ${response.statusText}`);
+    }
+    const data: Product[] = await response.json();
+    products = data;
+    console.log("Dados recebidos do servidor:", data);
+    return data;
   } catch (error) {
-      console.error("Erro ao buscar produtos:", error); 
-      throw error;
+    console.error("Erro ao buscar produtos:", error);
+    throw error;
   }
 }
 
@@ -80,7 +92,6 @@ function setupLoadMoreButton() {
       renderProducts(nextProducts, true);
       currentProductIndex += productsPerPage;
 
-      // Esconder o botão se não houver mais produtos
       if (currentProductIndex >= products.length) {
         loadMoreButton.style.display = 'none';
       }
@@ -92,236 +103,166 @@ function setupLoadMoreButton() {
 function renderProducts(products: Product[], append: boolean = false) {
   const productsContainer = document.getElementById('products-container');
   if (!productsContainer) {
-      console.error("Elemento 'products-container' não encontrado");
-      return;
+    console.error("Elemento 'products-container' não encontrado");
+    return;
   }
 
   if (!append) {
-    productsContainer.innerHTML = ''; 
+    productsContainer.innerHTML = '';
   }
 
-  console.log("Renderizando produtos..."); 
+  console.log("Renderizando produtos...");
 
   products.forEach(product => {
-      console.log("Renderizando produto:", product); 
+    console.log("Renderizando produto:", product);
 
-      const productDiv = document.createElement('div');
-      productDiv.classList.add('product-item');
+    const productDiv = document.createElement('div');
+    productDiv.classList.add('product-item');
 
-      const productImage = document.createElement('img')
-      productImage.src = product.image
-      productDiv.appendChild(productImage)
+    const productImage = document.createElement('img');
+    productImage.src = product.image;
+    productDiv.appendChild(productImage);
 
-      const productSubDiv = document.createElement('div')
-      productDiv.appendChild(productSubDiv)
+    const productName = document.createElement('h2');
+    productName.textContent = product.name.toUpperCase();
+    productDiv.appendChild(productName);
 
-      const productName = document.createElement('h2');
-      productName.textContent = product.name;
-      productSubDiv.appendChild(productName);
+    const productPrice = document.createElement('p');
+    productPrice.textContent = `R$ ${product.price.toFixed(2)}`;
+    productPrice.classList.add('price');
+    productDiv.appendChild(productPrice);
 
-      const productPrice = document.createElement('p');
-      productPrice.textContent = product.price.toString();
-      productSubDiv.appendChild(productPrice);
+    // Calcular e exibir parcelamento
+    const productParcelamento = document.createElement('p');
+    productParcelamento.classList.add('parcelamento');
+    if (Array.isArray(product.parcelamento) && product.parcelamento.length > 0) {
+      const minParcel = Math.min(...product.parcelamento);
+      const parcelaValue = product.price / minParcel;
+      productParcelamento.textContent = `Até ${minParcel}x de R$ ${parcelaValue.toFixed(2)}`;
+    }
+    productDiv.appendChild(productParcelamento);
 
-      const productParcelamento = document.createElement('p');
-      productParcelamento.textContent = `Até ${product.parcelamento}`;
-      productSubDiv.appendChild(productParcelamento)
+    const buyButton = document.createElement('button');
+    buyButton.textContent = `COMPRAR`;
+    buyButton.addEventListener('click', () => addToCart(product));
+    productDiv.appendChild(buyButton);
 
-      const buyButton = document.createElement('button');
-      buyButton.textContent = `COMPRAR`;
-      buyButton.addEventListener('click', () => addToCart(product)); // Adiciona o event listener aqui
-      productDiv.appendChild(buyButton);
-  
-      productsContainer.appendChild(productDiv);
-    });
+    productsContainer.appendChild(productDiv);
+  });
 
   console.log("Produtos renderizados:", productsContainer.innerHTML);
 }
 
-//filtro do aside
-function navbarAsideTrigger() {
-    const buttonFilter: HTMLButtonElement = document.querySelector('#filterTrigger')
-    const asideElement = document.querySelector('aside')
+// Função para configurar os botões de filtro e ordenação
+function setupFilterAndOrderTriggers() {
+  const buttonFilterMobile = document.getElementById('filterTrigger');
+  const buttonOrderMobile = document.getElementById('orderTrigger');
+  const formFilterMobile = document.getElementById('form');
+  const formOrderMobile = document.getElementById('form-order');
+  const closeFilterMobile = document.getElementById('closeFilter');
+  const closeOrderMobile = document.getElementById('closeOrder');
+  const asideElement = document.querySelector('aside');
 
-    buttonFilter.addEventListener('click', () => {
-      const classListAside = asideElement.classList
-      
-      if (classListAside.contains('active')) {
-        classListAside.remove('active')
-      } else {
-        classListAside.add('active')
-      }
-    })
+  buttonFilterMobile.addEventListener('click', (event) => {
+    event.preventDefault();
+    formFilterMobile.classList.toggle('active');
+    asideElement.classList.toggle('active');
+  });
+
+  buttonOrderMobile.addEventListener('click', (event) => {
+    event.preventDefault();
+    formOrderMobile.classList.toggle('active');
+    asideElement.classList.toggle('active');
+  });
+
+  closeFilterMobile.addEventListener('click', (event) => {
+    event.preventDefault();
+    formFilterMobile.classList.remove('active');
+    asideElement.classList.remove('active');
+  });
+
+  closeOrderMobile.addEventListener('click', (event) => {
+    event.preventDefault();
+    formOrderMobile.classList.remove('active');
+    asideElement.classList.remove('active');
+  });
+
+  
+  renderFilterOptions('color', 'desktop-color-container', 'desktop');
+  renderFilterOptions('size', 'desktop-size-container', 'desktop');
+  renderFilterOptions('price', 'desktop-price-container', 'desktop');
+
+ 
+  const orderRecentMobile = document.getElementById('orderTriggerRecent');
+  const orderHighPriceMobile = document.getElementById('orderTriggerHighPrice');
+  const orderLowPriceMobile = document.getElementById('orderTriggerLowPrice');
+
+  if (orderRecentMobile) {
+    orderRecentMobile.addEventListener('click', () => {
+      sortProducts('recent');
+      asideElement.classList.remove('active'); 
+      formOrderMobile.classList.remove('active');
+    });
+  }
+
+  if (orderHighPriceMobile) {
+    orderHighPriceMobile.addEventListener('click', () => {
+      sortProducts('high-price');
+      asideElement.classList.remove('active'); 
+      formOrderMobile.classList.remove('active');
+    });
+  }
+
+  if (orderLowPriceMobile) {
+    orderLowPriceMobile.addEventListener('click', () => {
+      sortProducts('low-price');
+      asideElement.classList.remove('active'); 
+      formOrderMobile.classList.remove('active');
+    });
+  }
 }
 
-// Função para configurar o menu "Ordenar"
-function setupOrderMenu() {
-  const orderTrigger = document.getElementById('orderTrigger');
-  const formOrder = document.querySelector('.form-order') as HTMLElement;
-  const closeOrder = document.getElementById('closeOrder');
+// Função para configurar a visibilidade das seções de filtros no mobile
+function setupFilterToggleButtons() {
+  const colorButton = document.getElementById('filterTriggerColor');
+  const sizeButton = document.getElementById('filterTriggerSize');
+  const priceButton = document.getElementById('filterTriggerPrice');
 
-  orderTrigger.addEventListener('click', () => {
-    formOrder.classList.toggle('active');
-    document.querySelector('aside').classList.toggle('active'); // Adiciona classe 'active' ao aside
-    document.querySelector('main').classList.toggle('hidden'); // Esconde o main
-  });
+  const colorContainer = document.getElementById('color-container') as HTMLElement;
+  const sizeContainer = document.getElementById('size-container') as HTMLElement;
+  const priceContainer = document.getElementById('price-container') as HTMLElement;
 
-  closeOrder.addEventListener('click', () => {
-    formOrder.classList.remove('active');
-    document.querySelector('aside').classList.remove('active'); // Remove classe 'active' do aside
-    document.querySelector('main').classList.remove('hidden'); // Mostra o main
-  });
-
-  const orderButtons = document.querySelectorAll('.orderTrigger');
-  orderButtons.forEach(button => {
-    button.addEventListener('click', (event) => {
+  if (colorButton && sizeButton && priceButton) {
+    colorButton.addEventListener('click', (event) => {
       event.preventDefault();
-      const target = event.target as HTMLButtonElement;
-      sortProducts(target.id);
-      formOrder.classList.remove('active');
-      document.querySelector('aside').classList.remove('active'); // Remove classe 'active' do aside
-      document.querySelector('main').classList.remove('hidden'); // Mostra o main
-    });
-  });
-}
-
-function sortProducts(criteria: string) {
-  let sortedProducts = [...products];
-
-  if (criteria === 'orderTriggerRecent') {
-    sortedProducts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  } else if (criteria === 'orderTriggerHighPrice') {
-    sortedProducts.sort((a, b) => b.price - a.price);
-  } else if (criteria === 'orderTriggerLowPrice') {
-    sortedProducts.sort((a, b) => a.price - b.price);
-  }
-
-  renderProducts(sortedProducts, false);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const buttonFilterColor = document.getElementById('filterTriggerColor') as HTMLButtonElement;
-  const buttonFilterSize = document.getElementById('filterTriggerSize') as HTMLButtonElement;
-  const buttonFilterPrice = document.getElementById('filterTriggerPrice') as HTMLButtonElement;
-  const buttonCloseFilter = document.getElementById('closeFilter') as HTMLParagraphElement;
-  const buttonCloseOrder = document.getElementById('closeOrder') as HTMLParagraphElement;
-  const asideElement = document.querySelector('aside') as HTMLElement;
-  const mainContent = document.querySelector('main') as HTMLElement;
-
-  buttonFilterColor.addEventListener('click', (event) => {
-    event.preventDefault();
-    renderFilterOptions('color');
-  });
-
-  buttonFilterSize.addEventListener('click', (event) => {
-    event.preventDefault();
-    renderFilterOptions('size');
-  });
-
-  buttonFilterPrice.addEventListener('click', (event) => {
-    event.preventDefault();
-    renderFilterOptions('price');
-  });
-
-  buttonCloseFilter.addEventListener('click', (event) => {
-    event.preventDefault();
-    asideElement.classList.remove('active');
-    mainContent.classList.remove('hidden');
-  });
-
-  buttonCloseOrder.addEventListener('click', (event) => {
-    event.preventDefault();
-    asideElement.classList.remove('active');
-    mainContent.classList.remove('hidden');
-  });
-
-  function showFilterMenu() {
-    asideElement.classList.add('active');
-    mainContent.classList.add('hidden');
-  }
-
-  const openFilterButton = document.getElementById('filterTriggerColor') as HTMLButtonElement; // ou qualquer botão que abra o filtro
-  openFilterButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    showFilterMenu();
-  });
-
-  const applyFiltersButton = document.getElementById('apply-filters') as HTMLButtonElement;
-  applyFiltersButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    applyFilters();
-  });
-
-  const clearFiltersButton = document.getElementById('clear-filters') as HTMLButtonElement;
-  clearFiltersButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    clearFilters();
-  });
-
-  // Chamar setupOrderMenu aqui
-  setupOrderMenu();
-});
-
-
-
-//filtro dos produtos
-function filterProducts() {
-  const filteredProducts = products.filter(product => {
-    const productPrice = product.price;
-
-    let isColorMatch = selectedColors.size === 0 || selectedColors.has(product.color);
-    let isSizeMatch = selectedSizes.size === 0 || (Array.isArray(product.size) ? product.size.some(size => selectedSizes.has(size)) : selectedSizes.has(product.size));
-    let isPriceMatch = selectedPriceRanges.length === 0 || selectedPriceRanges.some(range => {
-      return productPrice >= range.min && productPrice <= range.max;
+      renderFilterOptions('color', 'color-container', 'mobile');
+      toggleVisibility(colorContainer);
     });
 
-    console.log(`Produto: ${product.name}, Preço: ${productPrice}, Cor: ${product.color}, Tamanho: ${product.size}, isColorMatch: ${isColorMatch}, isSizeMatch: ${isSizeMatch}, isPriceMatch: ${isPriceMatch}`);
+    sizeButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      renderFilterOptions('size', 'size-container', 'mobile');
+      toggleVisibility(sizeContainer);
+    });
 
-    return isColorMatch && isSizeMatch && isPriceMatch;
-  });
-
-  renderProducts(filteredProducts);
+    priceButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      renderFilterOptions('price', 'price-container', 'mobile');
+      toggleVisibility(priceContainer);
+    });
+  }
 }
 
-//aplicar filtros
-function applyFilters() {
-  filtersToApply.colors = new Set(selectedColors);
-  filtersToApply.sizes = new Set(selectedSizes);
-  filtersToApply.priceRanges = [...selectedPriceRanges];
-
-  filterProducts();
-}
-
-//limpar filtros
-function clearFilters() {
-  selectedColors.clear();
-  selectedSizes.clear();
-  selectedPriceRanges = [];
-  filtersToApply.colors.clear();
-  filtersToApply.sizes.clear();
-  filtersToApply.priceRanges = [];
-
-  document.querySelectorAll('#color-container input').forEach(input => (input as HTMLInputElement).checked = false);
-  document.querySelectorAll('#size-container button').forEach(button => button.classList.remove('selected'));
-  document.querySelectorAll('#price-container input').forEach(input => (input as HTMLInputElement).checked = false);
-
-  renderProducts(products);
-}
-//renderização das opções de filtro
-
-function renderFilterOptions(filterType: FilterType) {
-  let containerId: string;
-
-  if (filterType === 'color') {
-    containerId = 'color-container';
-  } else if (filterType === 'size') {
-    containerId = 'size-container';
-  } else if (filterType === 'price') {
-    containerId = 'price-container';
+function toggleVisibility(container: HTMLElement) {
+  if (container.style.display === 'block') {
+    container.style.display = 'none';
   } else {
-    throw new Error('Tipo de filtro inválido');
+    container.style.display = 'block';
   }
+}
 
+// Função para renderizar opções de filtro
+function renderFilterOptions(filterType: FilterType, containerId: string, context: 'mobile' | 'desktop') {
   const productsContainer = document.getElementById(containerId);
   if (!productsContainer) return;
 
@@ -343,18 +284,26 @@ function renderFilterOptions(filterType: FilterType) {
 
       input.addEventListener('change', (event) => {
         const target = event.target as HTMLInputElement;
-        if (target.checked) {
-          selectedPriceRanges.push({ min: priceRange.min, max: priceRange.max });
+        if (context === 'mobile') {
+          if (target.checked) {
+            selectedPriceRangesMobile.push({ min: priceRange.min, max: priceRange.max });
+          } else {
+            selectedPriceRangesMobile = selectedPriceRangesMobile.filter(range => range.min !== priceRange.min || range.max !== priceRange.max);
+          }
         } else {
-          selectedPriceRanges = selectedPriceRanges.filter(range => range.min !== priceRange.min || range.max !== priceRange.max);
+          if (target.checked) {
+            selectedPriceRangesDesktop.push({ min: priceRange.min, max: priceRange.max });
+          } else {
+            selectedPriceRangesDesktop = selectedPriceRangesDesktop.filter(range => range.min !== priceRange.min || range.max !== priceRange.max);
+          }
         }
-        console.log('Selected price ranges:', selectedPriceRanges);
+        console.log('Selected price ranges:', context === 'mobile' ? selectedPriceRangesMobile : selectedPriceRangesDesktop);
+        applyFilters(context);
       });
 
       productsContainer.appendChild(itemDiv);
     });
   } else if (filterType === 'size') {
-    // Renderizar tamanhos como botões
     const sizes = new Set<string>();
 
     products.forEach(product => {
@@ -372,44 +321,130 @@ function renderFilterOptions(filterType: FilterType) {
       button.textContent = size;
 
       button.addEventListener('click', () => {
-        if (selectedSizes.has(size)) {
-          selectedSizes.delete(size);
-          button.classList.remove('selected');
+        if (context === 'mobile') {
+          if (selectedSizesMobile.has(size)) {
+            selectedSizesMobile.delete(size);
+            button.classList.remove('selected');
+          } else {
+            selectedSizesMobile.add(size);
+            button.classList.add('selected');
+          }
         } else {
-          selectedSizes.add(size);
-          button.classList.add('selected');
+          if (selectedSizesDesktop.has(size)) {
+            selectedSizesDesktop.delete(size);
+            button.classList.remove('selected');
+          } else {
+            selectedSizesDesktop.add(size);
+            button.classList.add('selected');
+          }
         }
-        console.log('Selected sizes:', Array.from(selectedSizes));
+        console.log('Selected sizes:', context === 'mobile' ? Array.from(selectedSizesMobile) : Array.from(selectedSizesDesktop));
+        applyFilters(context);
       });
 
       productsContainer.appendChild(button);
     });
   } else {
+    const colors = new Set<string>();
+
     products.forEach(product => {
+      colors.add(product.color);
+    });
+
+    colors.forEach(color => {
       const itemDiv = document.createElement('div');
-      itemDiv.classList.add(`${filterType}-item`);
+      itemDiv.classList.add('color-item');
 
       const input = document.createElement('input');
       input.type = 'checkbox';
-      input.value = product[filterType].toString();
+      input.value = color;
       itemDiv.appendChild(input);
 
       const label = document.createElement('label');
-      label.textContent = product[filterType].toString();
+      label.textContent = color;
       itemDiv.appendChild(label);
 
       input.addEventListener('change', (event) => {
         const target = event.target as HTMLInputElement;
-        if (target.checked) {
-          selectedColors.add(target.value);
+        if (context === 'mobile') {
+          if (target.checked) {
+            selectedColorsMobile.add(target.value);
+          } else {
+            selectedColorsMobile.delete(target.value);
+          }
         } else {
-          selectedColors.delete(target.value);
+          if (target.checked) {
+            selectedColorsDesktop.add(target.value);
+          } else {
+            selectedColorsDesktop.delete(target.value);
+          }
         }
-        console.log('Selected colors:', Array.from(selectedColors));
+        console.log('Selected colors:', context === 'mobile' ? Array.from(selectedColorsMobile) : Array.from(selectedColorsDesktop));
+        applyFilters(context);
       });
 
       productsContainer.appendChild(itemDiv);
     });
   }
 }
+
+// Função para aplicar filtros
+function applyFilters(context: 'mobile' | 'desktop') {
+  let filteredProducts = products.filter(product => {
+    const productPrice = product.price;
+
+    let isColorMatch = true;
+    let isSizeMatch = true;
+    let isPriceMatch = true;
+
+    if (context === 'mobile') {
+      isColorMatch = selectedColorsMobile.size === 0 || selectedColorsMobile.has(product.color);
+      isSizeMatch = selectedSizesMobile.size === 0 || (Array.isArray(product.size) ? product.size.some(size => selectedSizesMobile.has(size)) : selectedSizesMobile.has(product.size));
+      isPriceMatch = selectedPriceRangesMobile.length === 0 || selectedPriceRangesMobile.some(range => {
+        return productPrice >= range.min && productPrice <= range.max;
+      });
+    } else {
+      isColorMatch = selectedColorsDesktop.size === 0 || selectedColorsDesktop.has(product.color);
+      isSizeMatch = selectedSizesDesktop.size === 0 || (Array.isArray(product.size) ? product.size.some(size => selectedSizesDesktop.has(size)) : selectedSizesDesktop.has(product.size));
+      isPriceMatch = selectedPriceRangesDesktop.length === 0 || selectedPriceRangesDesktop.some(range => {
+        return productPrice >= range.min && productPrice <= range.max;
+      });
+    }
+
+    console.log(`Produto: ${product.name}, Preço: ${productPrice}, Cor: ${product.color}, Tamanho: ${product.size}, isColorMatch: ${isColorMatch}, isSizeMatch: ${isSizeMatch}, isPriceMatch: ${isPriceMatch}`);
+
+    return isColorMatch && isSizeMatch && isPriceMatch;
+  });
+
+  renderProducts(filteredProducts);
+}
+
+// Função para ordenar produtos
+function sortProducts(criteria: string) {
+  let sortedProducts = [...products];
+
+  if (criteria === 'recent') {
+    sortedProducts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  } else if (criteria === 'high-price') {
+    sortedProducts.sort((a, b) => b.price - a.price);
+  } else if (criteria === 'low-price') {
+    sortedProducts.sort((a, b) => a.price - b.price);
+  }
+
+  renderProducts(sortedProducts, false);
+}
+
+// Função para configurar a seleção de ordenação
+function setupOrderSelect() {
+  const orderSelect = document.getElementById('order-select') as HTMLSelectElement;
+  if (orderSelect) {
+    orderSelect.addEventListener('change', () => {
+      const criteria = orderSelect.value;
+      console.log(`Ordenando por: ${criteria}`);
+      sortProducts(criteria);
+    });
+  }
+}
+
+// Inicialização dos filtros ao carregar a página
 document.addEventListener("DOMContentLoaded", main);
