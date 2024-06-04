@@ -7,67 +7,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Desenvolvedor Cadastra</title>
   <link rel="stylesheet" href="main.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
 </head>
 
 <body>
   <header class="header">
-    <img src="./img/cadastraLogo.png" alt="">
-    <div class="cart-container">
-      <img class="cart_image" src="./img/cart.png" alt="">
-      <span id="cart-count" class="cart-count">0</span>
-    </div>
-
+    <section class="image-and-cart">
+      <img src="./img/cadastraLogo.png" alt="">
+      <div class="cart-container">
+        <img class="cart_image" src="./img/cart.png" alt="">
+        <span id="cart-count" class="cart-count">0</span>
+      </div>
+    </section>
   </header>
   <aside>
     <nav class="nav-mobile">
-  <form id="form" class="form active">
-    <div class="head">
-      <h2>FILTRAR</h2>
-      <p id="closeFilter">X</p>
-    </div>
-    <button id="filterTriggerColor" class="filterTrigger">CORES</button>
-    <section id="color-container" class="color-container"></section>
+      <form id="form" class="form active">
+        <div class="head">
+          <h2>FILTRAR</h2>
+          <p id="closeFilter">X</p>
+        </div>
+        <button id="filterTriggerColor" type="button" class="filterTrigger">CORES</button>
+        <section id="color-container" class="color-container"></section>
 
-    <button id="filterTriggerSize" class="filterTrigger">TAMANHOS</button>
-    <section id="size-container" class="size-container"></section>
+        <button id="filterTriggerSize" type="button" class="filterTrigger">TAMANHOS</button>
+        <section id="size-container" class="size-container"></section>
 
-    <button id="filterTriggerPrice" class="filterTrigger">FAIXA DE PREÇO</button>
-    <section id="price-container" class="price-container"></section>
+        <button id="filterTriggerPrice" type="button" class="filterTrigger">FAIXA DE PREÇO</button>
+        <section id="price-container" class="price-container"></section>
 
-    <button id="apply-filters" type="button">Aplicar</button>
-    <button id="clear-filters" type="button">Limpar</button>
-  </form>
+        <button id="apply-filters" type="button">Aplicar</button>
+        <button id="clear-filters" type="button">Limpar</button>
+      </form>
 
-  <!-- Ordenar -->
-  <form id="form-order" class="form-order">
-    <div class="head">
-      <h2>ORDENAR</h2>
-      <p id="closeOrder">X</p>
-    </div>
-    <button id="orderTriggerRecent" class="orderTrigger">Mais recentes</button>
-    <button id="orderTriggerHighPrice" class="orderTrigger">Maior preço</button>
-    <button id="orderTriggerLowPrice" class="orderTrigger">Menor preço</button>
-  </form>
+      <!-- Ordenar -->
+      <form id="form-order" class="form-order">
+        <div class="head">
+          <h2>ORDENAR</h2>
+          <p id="closeOrder">X</p>
+        </div>
+        <button id="orderTriggerRecent" type="button" class="orderTrigger">Mais recentes</button>
+        <button id="orderTriggerHighPrice" type="button" class="orderTrigger">Maior preço</button>
+        <button id="orderTriggerLowPrice" type="button" class="orderTrigger">Menor preço</button>
+      </form>
     </nav>
   </aside>
-  <main class=".maincontent">
+  <main class="maincontent">
     <section class="title_and_filter">
       <h1>Blusas</h1>
       <div class="filter_and_order">
-        <button id="filterTrigger">Filtrar</button>
-        <button id="orderTrigger">Ordenar</button>
+        <button id="filterTrigger" type="button">Filtrar</button>
+        <button id="orderTrigger" type="button">Ordenar</button>
+        <select id="order-select" class="filter-order-select">
+          <option value="recent">Mais Recentes</option>
+          <option value="high-price">Maior Preço</option>
+          <option value="low-price">Menor Preço</option>
+        </select>
       </div>
     </section>
-
-    <section id="products-container">
-
+    <section class="product_and_filter">
+      <div class="desktop-filter">
+        <h2>CORES</h2>
+        <div id="desktop-color-container" class="desktop-filter-section"></div>
+        <h2>TAMANHOS</h2>
+        <div id="desktop-size-container" class="desktop-filter-size-section"></div>
+        <h2>FAIXA DE PREÇO</h2>
+        <div id="desktop-price-container" class="desktop-filter-section"></div>
+      </div>
+      <div id="products-container"></div>
     </section>
   </main>
+  <footer>
+    <button id="load-more" type="button">Carregar Mais</button>
+  </footer>
+  <script src="bundle.js"></script>
 </body>
-<footer>
- <button id="load-more">Carregar Mais</button>
-</footer>
-
-<script src="bundle.js"></script>
 
 </html>
